@@ -1,3 +1,4 @@
+// Admin.jsx
 import { useState, useEffect, useRef } from "react";
 
 export default function Admin() {
@@ -13,31 +14,69 @@ export default function Admin() {
   const [queuesA, setQueuesA] = useState({ apotik: 0, kasir: 0 });
   const [queuesB, setQueuesB] = useState({ apotik: 0, kasir: 0 });
 
+  const [lastApotik, setLastApotik] = useState("A0");
+  const [lastKasir, setLastKasir] = useState("A0");
+
   const [printUmum, setPrintUmum] = useState(0);
   const [printGigi, setPrintGigi] = useState(0);
 
   const [jenisStruk, setJenisStruk] = useState("umum");
-
   const voiceRef = useRef(null);
 
+  // ============================
+  // SAVE TO LOCALSTORAGE
+  // ============================
+  const saveToLocalStorage = (q, qA, qB, lastA, lastK) => {
+    const stateQ = q ?? queues;
+    const stateQA = qA ?? queuesA;
+    const stateQB = qB ?? queuesB;
+    const stateLastA = lastA ?? lastApotik;
+    const stateLastK = lastK ?? lastKasir;
+
+    const finalDisplay = {
+      poli1: `A${stateQ.poli1}`,
+      poli2: `A${stateQ.poli2}`,
+      poli3: `B${stateQ.poli3}`,
+      apotik: stateLastA,
+      kasir: stateLastK,
+    };
+
+    localStorage.setItem("queues", JSON.stringify(finalDisplay));
+  };
+
+  // Save first render
+  useEffect(() => {
+    saveToLocalStorage(queues, queuesA, queuesB, lastApotik, lastKasir);
+  }, []);
+
+  // ============================
+  // VOICE INITIALIZATION
+  // ============================
   useEffect(() => {
     const loadVoices = () => {
-      if (!("speechSynthesis" in window)) return;
-      const allVoices = window.speechSynthesis.getVoices();
-      const indoVoice = allVoices.find((v) => v.lang?.startsWith("id"));
-      voiceRef.current = indoVoice || null;
+      const all = speechSynthesis.getVoices();
+      const indo = all.find((v) => v.lang?.startsWith("id"));
+      if (indo) voiceRef.current = indo;
     };
+
     loadVoices();
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
+    speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
 
   const numberToBahasa = (num) => {
     const satuan = [
-      "nol", "satu", "dua", "tiga", "empat", "lima",
-      "enam", "tujuh", "delapan", "sembilan",
-      "sepuluh", "sebelas"
+      "nol",
+      "satu",
+      "dua",
+      "tiga",
+      "empat",
+      "lima",
+      "enam",
+      "tujuh",
+      "delapan",
+      "sembilan",
+      "sepuluh",
+      "sebelas",
     ];
     if (num < 12) return satuan[num];
     if (num < 20) return satuan[num - 10] + " belas";
@@ -49,54 +88,66 @@ export default function Admin() {
     return num.toString();
   };
 
-  const speakFormattedNumber = (prefix, number) => {
-    return `${prefix} ${numberToBahasa(number)}`;
-  };
+  const speakFormattedNumber = (prefix, number) =>
+    `${prefix} ${numberToBahasa(number)}`;
 
-  const poliToBahasa = (poli) => {
-    switch (poli) {
-      case "poli1": return "Poli Umum 1";
-      case "poli2": return "Poli Umum 2";
-      case "poli3": return "Poli Gigi";
-      case "apotik": return "Apotik";
-      case "kasir": return "Kasir";
-      default: return poli;
+  const poliToBahasa = (key) => {
+    switch (key) {
+      case "poli1":
+        return "Poli Umum 1";
+      case "poli2":
+        return "Poli Umum 2";
+      case "poli3":
+        return "Poli Gigi";
+      case "apotik":
+        return "Apotik";
+      case "kasir":
+        return "Kasir";
+      default:
+        return key;
     }
   };
 
   const announce = (prefix, key, number) => {
-    if (!("speechSynthesis" in window)) return;
     if (number <= 0) return;
 
-    window.speechSynthesis.cancel();
-
-    const formatted = speakFormattedNumber(prefix, number);
-    const poliName = poliToBahasa(key);
-
-    const msg = new SpeechSynthesisUtterance(
-      `Nomor antrian ${formatted}, silahkan menuju ke ${poliName}`
+    const message = new SpeechSynthesisUtterance(
+      `Nomor antrian ${speakFormattedNumber(
+        prefix,
+        number
+      )}, silahkan menuju ke ${poliToBahasa(key)}`
     );
 
-    msg.lang = "id-ID";
-    msg.rate = 1.0;
-    if (voiceRef.current) msg.voice = voiceRef.current;
-
-    window.speechSynthesis.speak(msg);
+    message.lang = "id-ID";
+    if (voiceRef.current) message.voice = voiceRef.current;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(message);
   };
 
+  // ============================
+  // NEXT / PREVIOUS POLI
+  // ============================
   const handleNextPoli = (key) => {
-    if (key === "poli1" || key === "poli2") {
-      setGlobalCounter((prev) => {
+    if (key === "poli3") {
+      setGigiCounter((prev) => {
         const next = prev + 1;
-        setQueues((q) => ({ ...q, [key]: next }));
-        announce("A", key, next);
+        setQueues((q) => {
+          const updated = { ...q, [key]: next };
+          saveToLocalStorage(updated, queuesA, queuesB, lastApotik, lastKasir);
+          announce("B", key, next);
+          return updated;
+        });
         return next;
       });
     } else {
-      setGigiCounter((prev) => {
+      setGlobalCounter((prev) => {
         const next = prev + 1;
-        setQueues((q) => ({ ...q, [key]: next }));
-        announce("B", key, next);
+        setQueues((q) => {
+          const updated = { ...q, [key]: next };
+          saveToLocalStorage(updated, queuesA, queuesB, lastApotik, lastKasir);
+          announce("A", key, next);
+          return updated;
+        });
         return next;
       });
     }
@@ -104,25 +155,44 @@ export default function Admin() {
 
   const handlePrevPoli = (key) => {
     setQueues((q) => {
-      let newVal = q[key] > 0 ? q[key] - 1 : 0;
-      const prefix = key === "poli3" ? "B" : "A";
-      if (newVal > 0) announce(prefix, key, newVal);
-      return { ...q, [key]: newVal };
+      const newVal = Math.max(0, q[key] - 1);
+      const updated = { ...q, [key]: newVal };
+      saveToLocalStorage(updated, queuesA, queuesB, lastApotik, lastKasir);
+
+      if (newVal > 0)
+        announce(key === "poli3" ? "B" : "A", key, newVal);
+
+      return updated;
     });
   };
 
+  // ============================
+  // APOTIK & KASIR (A/B)
+  // ============================
   const handleNextManual = (key, type) => {
     if (type === "A") {
       setQueuesA((prev) => {
         const next = prev[key] + 1;
+        const updated = { ...prev, [key]: next };
+        const newLast = key === "apotik" ? `${type}${next}` : lastApotik;
+        const newLastK = key === "kasir" ? `${type}${next}` : lastKasir;
+        setLastApotik(newLast);
+        setLastKasir(newLastK);
+        saveToLocalStorage(queues, updated, queuesB, newLast, newLastK);
         announce("A", key, next);
-        return { ...prev, [key]: next };
+        return updated;
       });
     } else {
       setQueuesB((prev) => {
         const next = prev[key] + 1;
+        const updated = { ...prev, [key]: next };
+        const newLast = key === "apotik" ? `${type}${next}` : lastApotik;
+        const newLastK = key === "kasir" ? `${type}${next}` : lastKasir;
+        setLastApotik(newLast);
+        setLastKasir(newLastK);
+        saveToLocalStorage(queues, queuesA, updated, newLast, newLastK);
         announce("B", key, next);
-        return { ...prev, [key]: next };
+        return updated;
       });
     }
   };
@@ -130,51 +200,55 @@ export default function Admin() {
   const handlePrevManual = (key, type) => {
     if (type === "A") {
       setQueuesA((prev) => {
-        const next = prev[key] > 0 ? prev[key] - 1 : 0;
+        const next = Math.max(0, prev[key] - 1);
+        const updated = { ...prev, [key]: next };
+        const newLast = key === "apotik" ? (next > 0 ? `${type}${next}` : "A0") : lastApotik;
+        const newLastK = key === "kasir" ? (next > 0 ? `${type}${next}` : "A0") : lastKasir;
+        setLastApotik(newLast);
+        setLastKasir(newLastK);
+        saveToLocalStorage(queues, updated, queuesB, newLast, newLastK);
         if (next > 0) announce("A", key, next);
-        return { ...prev, [key]: next };
+        return updated;
       });
     } else {
       setQueuesB((prev) => {
-        const next = prev[key] > 0 ? prev[key] - 1 : 0;
+        const next = Math.max(0, prev[key] - 1);
+        const updated = { ...prev, [key]: next };
+        const newLast = key === "apotik" ? (next > 0 ? `${type}${next}` : "A0") : lastApotik;
+        const newLastK = key === "kasir" ? (next > 0 ? `${type}${next}` : "A0") : lastKasir;
+        setLastApotik(newLast);
+        setLastKasir(newLastK);
+        saveToLocalStorage(queues, queuesA, updated, newLast, newLastK);
         if (next > 0) announce("B", key, next);
-        return { ...prev, [key]: next };
+        return updated;
       });
     }
   };
 
+  // ============================
+  // CETAK STRUK
+  // ============================
   const handlePrint = () => {
-    let nomorCetak = 0;
+    let nomor = jenisStruk === "umum" ? printUmum + 1 : printGigi + 1;
     let prefix = jenisStruk === "umum" ? "A" : "B";
 
-    if (jenisStruk === "umum") {
-      nomorCetak = printUmum + 1;
-      setPrintUmum(nomorCetak);
-    } else {
-      nomorCetak = printGigi + 1;
-      setPrintGigi(nomorCetak);
-    }
+    if (jenisStruk === "umum") setPrintUmum(nomor);
+    else setPrintGigi(nomor);
 
-    const waktuCetak = new Date().toLocaleString("id-ID", {
+    const waktu = new Date().toLocaleString("id-ID", {
       dateStyle: "full",
       timeStyle: "short",
     });
 
-    const printWindow = window.open("", "_blank", "width=300,height=500");
+    const w = window.open("", "_blank", "width=300,height=500");
 
-    printWindow.document.write(`
+    w.document.write(`
       <html>
         <head>
           <title>Struk Antrian</title>
           <style>
             @page { size: 80mm auto; margin: 0; }
-            body {
-              width: 80mm;
-              font-family: monospace;
-              text-align: center;
-              margin: 0;
-              padding: 0;
-            }
+            body { width: 80mm; font-family: monospace; text-align: center; margin: 0; padding: 0; }
             .wrap { padding: 8px; }
             .title { font-weight: bold; font-size: 13px; margin: 5px 0; }
             .line { border-top: 1px dashed black; margin: 5px 0; }
@@ -188,10 +262,10 @@ export default function Admin() {
             <div class="line"></div>
 
             <div>Nomor Antrian (${jenisStruk === "umum" ? "Poli Umum" : "Poli Gigi"})</div>
-            <div class="nomor">${prefix}${nomorCetak}</div>
+            <div class="nomor">${prefix}${nomor}</div>
 
             <div>Waktu Cetak:</div>
-            <div style="font-size: 12px;">${waktuCetak}</div>
+            <div style="font-size: 12px;">${waktu}</div>
 
             <div class="line"></div>
             Terima Kasih
@@ -205,12 +279,15 @@ export default function Admin() {
       </html>
     `);
 
-    printWindow.document.close();
+    w.document.close();
   };
 
+  // ============================
+  // UI
+  // ============================
   return (
     <div className="w-screen min-h-screen bg-gradient-to-b from-green-50 to-green-100 flex flex-col items-center py-10">
-      <div className="flex items-center gap-2 mb-10">
+      <div className="flex items-center gap-3 mb-10">
         <img
           src="/logo.png"
           alt="Logo Klinik"
@@ -222,22 +299,18 @@ export default function Admin() {
         </h1>
       </div>
 
-      {/* ===================== POLI ===================== */}
+      {/* === POLI === */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl px-6">
         {[
           { key: "poli1", label: "Poli Umum 1", prefix: "A" },
           { key: "poli2", label: "Poli Umum 2", prefix: "A" },
-          { key: "poli3", label: "Poli Gigi", prefix: "B" }
+          { key: "poli3", label: "Poli Gigi", prefix: "B" },
         ].map(({ key, label, prefix }) => (
-          <div
-            key={key}
-            className="bg-white rounded-2xl shadow-lg p-6 text-center"
-          >
+          <div key={key} className="bg-white rounded-2xl shadow-lg p-6 text-center">
             <h2 className="text-2xl font-semibold text-green-700">{label}</h2>
-
-            {/* === Perubahan di sini === */}
             <p className="text-7xl font-extrabold text-green-600 my-4 font-mono">
-              {prefix}{queues[key]}
+              {prefix}
+              {queues[key]}
             </p>
 
             <div className="flex justify-center gap-4 mt-4">
@@ -245,9 +318,8 @@ export default function Admin() {
                 onClick={() => handlePrevPoli(key)}
                 className="px-5 py-2 bg-gray-200 rounded-lg"
               >
-                 ⬅️ Previous
+                ⬅️ Previous
               </button>
-
               <button
                 onClick={() => handleNextPoli(key)}
                 className="px-5 py-2 bg-green-500 text-white rounded-lg"
@@ -259,67 +331,71 @@ export default function Admin() {
         ))}
       </div>
 
-      {/* ================= APOTIK & KASIR ================= */}
+      {/* === APOTIK & KASIR === */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 w-full max-w-5xl px-6">
         {[
           { key: "apotik", label: "Apotik" },
-          { key: "kasir", label: "Kasir" }
+          { key: "kasir", label: "Kasir" },
         ].map(({ key, label }) => (
           <div key={key} className="bg-white rounded-2xl shadow-lg p-6 text-center">
             <h2 className="text-2xl font-semibold text-green-700">{label}</h2>
 
             <div className="grid grid-cols-2 gap-6 mt-4">
-              
-              {/* A - Poli Umum */}
+              {/* Poli Umum A */}
               <div className="flex flex-col items-center">
                 <p className="text-xl font-semibold text-green-700">Poli Umum</p>
                 <p className="text-6xl font-extrabold text-green-600 font-mono">
                   {queuesA[key] > 0 ? `A${queuesA[key]}` : "A0"}
                 </p>
 
-                <button
-                  onClick={() => handlePrevManual(key, "A")}
-                  className="w-24 py-2 bg-gray-200 rounded-lg mt-3"
-                >
-                 ⬅️ Previous 
-                </button>
-                <button
-                  onClick={() => handleNextManual(key, "A")}
-                  className="w-24 py-2 bg-green-500 text-white rounded-lg mt-2"
-                >
-                  Next ➡️
-                </button>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => handlePrevManual(key, "A")}
+                    className="px-5 py-2 bg-gray-200 rounded-lg"
+                  >
+                    ⬅️ Previous
+                  </button>
+                  <button
+                    onClick={() => handleNextManual(key, "A")}
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg"
+                  >
+                    Next ➡️
+                  </button>
+                </div>
               </div>
 
-              {/* B - Poli Gigi */}
+              {/* Poli Gigi B */}
               <div className="flex flex-col items-center">
                 <p className="text-xl font-semibold text-green-700">Poli Gigi</p>
                 <p className="text-6xl font-extrabold text-green-600 font-mono">
                   {queuesB[key] > 0 ? `B${queuesB[key]}` : "B0"}
                 </p>
 
-                <button
-                  onClick={() => handlePrevManual(key, "B")}
-                  className="w-24 py-2 bg-gray-200 rounded-lg mt-3"
-                >
-                 ⬅️ Previous                
-                </button>
-                <button
-                  onClick={() => handleNextManual(key, "B")}
-                  className="w-24 py-2 bg-green-500 text-white rounded-lg mt-2"
-                >
-                  Next ➡️
-                </button>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => handlePrevManual(key, "B")}
+                    className="px-5 py-2 bg-gray-200 rounded-lg"
+                  >
+                    ⬅️ Previous
+                  </button>
+                  <button
+                    onClick={() => handleNextManual(key, "B")}
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg"
+                  >
+                    Next ➡️
+                  </button>
+                </div>
               </div>
-
             </div>
           </div>
         ))}
       </div>
 
-      {/* ================= CETAK STRUK ================= */}
+      {/* === CETAK STRUK === */}
       <div className="bg-white border border-green-300 rounded-2xl shadow-lg p-8 mt-12 w-full max-w-4xl text-center">
-        <h2 className="text-2xl font-semibold text-green-700 mb-4">🖨️ Cetak Struk Antrian</h2>
+        <h2 className="text-2xl font-semibold text-green-700 mb-4">
+          🖨️ Cetak Struk Antrian
+        </h2>
 
         <select
           className="border rounded-lg px-4 py-2 mb-4"
