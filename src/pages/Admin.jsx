@@ -210,11 +210,11 @@ export default function Admin() {
 
   return (
     <div className="w-screen min-h-screen bg-gradient-to-b from-green-50 to-green-100 flex flex-col items-center py-10">
-      <div className="flex items-center gap-3 mb-10">
+      <div className="flex items-center gap-2 mb-10">
         <img
           src="/logo.png"
           alt="Logo Klinik"
-          style={{ width: "45px", height: "45px" }}
+          style={{ width: "40px", height: "40px" }}
           className="rounded-lg shadow-md object-contain"
         />
         <h1 className="text-4xl font-bold text-green-700 tracking-wide">
