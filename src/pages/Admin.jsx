@@ -210,10 +210,17 @@ export default function Admin() {
 
   return (
     <div className="w-screen min-h-screen bg-gradient-to-b from-green-50 to-green-100 flex flex-col items-center py-10">
-
-      <h1 className="text-4xl font-bold text-green-700 tracking-wide mb-10">
-        Admin Panel Klinik Pratama As-Salam
-      </h1>
+      <div className="flex items-center gap-3 mb-10">
+        <img
+          src="/logo.png"
+          alt="Logo Klinik"
+          style={{ width: "45px", height: "45px" }}
+          className="rounded-lg shadow-md object-contain"
+        />
+        <h1 className="text-4xl font-bold text-green-700 tracking-wide">
+          Admin Panel Klinik Pratama As-Salam
+        </h1>
+      </div>
 
       {/* ===================== POLI ===================== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl px-6">
@@ -228,8 +235,9 @@ export default function Admin() {
           >
             <h2 className="text-2xl font-semibold text-green-700">{label}</h2>
 
+            {/* === Perubahan di sini === */}
             <p className="text-7xl font-extrabold text-green-600 my-4 font-mono">
-              {queues[key] > 0 ? prefix + queues[key] : "0"}
+              {prefix}{queues[key]}
             </p>
 
             <div className="flex justify-center gap-4 mt-4">
@@ -334,7 +342,6 @@ export default function Admin() {
           <b>{jenisStruk === "umum" ? printUmum + 1 : printGigi + 1}</b>
         </p>
       </div>
-
     </div>
   );
 }
