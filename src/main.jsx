@@ -8,7 +8,7 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/panel_admin">
       <Routes>
         <Route path="/" element={<Admin />} />
         <Route path="/display" element={<Display />} />
