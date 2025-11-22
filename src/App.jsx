@@ -4,7 +4,7 @@ import Display from "./pages/Display";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/panel_admin">
       <nav className="p-4 bg-blue-600 text-white flex gap-4">
         <Link to="/">Admin</Link>
         <Link to="/display">Display</Link>
